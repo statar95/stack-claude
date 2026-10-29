@@ -18,6 +18,17 @@ Then do the one step a script can't do for you: macOS opens Privacy & Security >
 
 If you have a portrait monitor it uses that. Otherwise it uses your main screen.
 
+## Hammerspoon version (recommended if you use Hammerspoon)
+
+`claude-windows.lua` does the same two hotkeys inside Hammerspoon, which already has Accessibility, so there's no app to grant and nothing breaks when you edit it:
+
+```
+ln -sf "$PWD/claude-windows.lua" ~/.hammerspoon/claude-windows.lua
+echo 'claudeWindows = require("claude-windows")' >> ~/.hammerspoon/init.lua
+```
+
+Then reload Hammerspoon. If you also ran `install.sh`, clear the Quick Action shortcuts in System Settings > Keyboard > Keyboard Shortcuts > Services so they don't compete.
+
 ## How it works
 
 - `stack-claude.js` - the script. Finds Claude's windows via System Events and resizes them into equal slices.
