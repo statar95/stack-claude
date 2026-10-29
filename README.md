@@ -4,6 +4,8 @@ One hotkey that stacks all your Claude desktop windows top to bottom, full width
 
 **⌃⌥⌘S** (Control + Option + Command + S) from any app.
 
+**⌃⌥⌘P** (P for position) is the laptop version: it tiles them side by side on your built-in screen, up to 3 across, then a second row once you have 4 or more.
+
 ## Install
 
 ```
@@ -20,7 +22,7 @@ If you have a portrait monitor it uses that. Otherwise it uses your main screen.
 
 - `stack-claude.js` - the script. Finds Claude's windows via System Events and resizes them into equal slices.
 - `StackClaude.app` - the script compiled into a tiny background app on your Mac. It exists so you grant Accessibility to one app, rather than to every app you might press the hotkey in.
-- `Stack Claude.workflow` - a Quick Action that opens the app. macOS binds the hotkey to it.
+- `Stack Claude.workflow` and `Position Claude.workflow` - Quick Actions that open the app (the second passes `laptop`). macOS binds the hotkeys to them. Both share the one app, so one Accessibility grant covers both.
 
 ## Troubleshooting
 
@@ -28,11 +30,11 @@ If you have a portrait monitor it uses that. Otherwise it uses your main screen.
 
 **Hotkey does nothing** - log out and back in. Some apps only pick up new Quick Action hotkeys at launch. Or change the key combo in System Settings > Keyboard > Keyboard Shortcuts > Services > General > Stack Claude.
 
-**Run it without the hotkey:** `osascript -l JavaScript stack-claude.js`
+**Run it without the hotkey:** `osascript -l JavaScript stack-claude.js` (add `laptop` for the side-by-side layout)
 
 ## Uninstall
 
 ```
-rm -rf ~/Applications/StackClaude.app "$HOME/Library/Services/Stack Claude.workflow"
+rm -rf ~/Applications/StackClaude.app "$HOME/Library/Services/Stack Claude.workflow" "$HOME/Library/Services/Position Claude.workflow"
 tccutil reset Accessibility com.stackclaude.app
 ```
