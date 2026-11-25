@@ -87,7 +87,3 @@ rm ~/.hammerspoon/stack-claude.lua
 ```
 
 and reload Hammerspoon.
-
-## Licence
-
-MIT. Use it, change it, share it; keep the licence file with it.
