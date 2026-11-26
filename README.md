@@ -85,7 +85,7 @@ Options: `color`, `width`, `interval` (seconds), `mods`, `diagnosticKey`, `log`.
 | Hotkey | Layout |
 |---|---|
 | **⌃⌥⌘2** | 2×2 |
-| **⌃⌥⌘3** | 3×3, pop-out chats only; the main window goes to the Dock |
+| **⌃⌥⌘3** | Laptop focus: your six most recent pop-out chats fill the screen (3×2, smaller grid if fewer), the main window and any extra chats go to the Dock, other apps are hidden (on every desktop and screen; ⌘Tab or the Dock brings one back) |
 | **⌃⌥⌘4** | 2×4 on a vertical monitor |
 
 A window that can't shrink to one square, usually the main window, gets two squares and goes first. With more windows than squares, the grid grows.
@@ -94,7 +94,7 @@ A window that can't shrink to one square, usually the main window, gets two squa
 stackClaudeGrid = require("stack-claude-grid").start()
 ```
 
-Options: `mods`, `gridKey`, `popOutKey`, `verticalKey`, `gap`.
+Options: `mods`, `gridKey`, `popOutKey`, `verticalKey`, `gap`, `focusLimit` (default 6), `hideOthers` (default true).
 
 ## Why Hammerspoon
 

@@ -1,6 +1,7 @@
 -- Stack Claude grids: tile Claude windows into a grid on Claude's own desktop.
 --   Ctrl+Option+Command+2  2x2
---   Ctrl+Option+Command+3  3x3, pop-out chats only: the main window (the one with the sidebar) goes to the Dock
+--   Ctrl+Option+Command+3  laptop focus: the six most recent pop-out chats fill the screen in 3x2, the main window
+--                          (the one with the sidebar) and any other chats go to the Dock, and other apps are hidden
 --   Ctrl+Option+Command+4  2x4 on a vertical monitor: two across, four down
 -- Windows go in alphabetical order of chat title. A window that can't shrink to one square (usually the
 -- main window) gets two squares, placed first. More windows than squares and the grid grows to fit.
@@ -15,6 +16,8 @@ local defaults = {
   gridKey = "2",
   popOutKey = "3",
   verticalKey = "4",
+  focusLimit = 6,
+  hideOthers = true,
 }
 
 local TOLERANCE = 20 -- px a window may overshoot its square before it counts as wide
@@ -72,7 +75,46 @@ local function verticalScreen()
   end
 end
 
-function M.tile(cols, rows, pickScreen, popOutsOnly)
+local function hideOtherApps(keep)
+  for _, other in ipairs(hs.application.runningApplications()) do
+    if other:pid() ~= keep:pid() and other:kind() == 1 and not other:isHidden() then other:hide() end
+  end
+end
+
+-- Front to back on this desktop; minimised windows come last.
+local function recencyRanks()
+  local ranks = {}
+  for i, w in ipairs(hs.window.orderedWindows()) do ranks[w:id()] = i end
+  return ranks
+end
+
+-- Ranked before anything is restored, because a restored window jumps to the front.
+local function splitMostRecent(wins, limit)
+  if not limit or #wins <= limit then return wins, {} end
+  local ranks = recencyRanks()
+  table.sort(wins, function(a, b)
+    local ra, rb = ranks[a:id()] or math.huge, ranks[b:id()] or math.huge
+    if ra ~= rb then return ra < rb end
+    return a:id() < b:id()
+  end)
+  local kept, spare = {}, {}
+  for i, w in ipairs(wins) do table.insert(i <= limit and kept or spare, w) end
+  return kept, spare
+end
+
+local function bringBack(w)
+  if w:isMinimized() then w:unminimize() end
+  if w:isFullScreen() then w:setFullScreen(false) end
+end
+
+-- Fewer windows than squares: use a smaller grid so they still fill the screen.
+local function fitGrid(n, cols, rows)
+  if n >= cols * rows - 1 then return cols, rows end
+  if n <= cols then return n, 1 end
+  return math.ceil(n / 2), 2
+end
+
+function M.tile(cols, rows, pickScreen, popOutsOnly, limit, hideOthers)
   local app = hs.application.get(config.app)
   if not app then hs.alert.show(config.app .. " isn't running") return end
 
@@ -93,17 +135,21 @@ function M.tile(cols, rows, pickScreen, popOutsOnly)
     end
     local minimisedOne = mainWin ~= nil
 
-    local wins = {}
+    local candidates = {}
     for _, w in ipairs(app:allWindows()) do
       if mainWin and w:id() == mainWin:id() then
         if not w:isMinimized() then w:minimize() end
       elseif w:isStandard() then
-        if w:isMinimized() then w:unminimize() end
-        if w:isFullScreen() then w:setFullScreen(false) end
-        table.insert(wins, w)
+        table.insert(candidates, w)
       end
     end
-    if #wins == 0 then hs.alert.show("No Claude windows open") return end
+    if #candidates == 0 then hs.alert.show("No Claude windows open") return end
+    if hideOthers then hideOtherApps(app) end
+    local wins, spare = splitMostRecent(candidates, limit)
+    for _, w in ipairs(spare) do
+      if not w:isMinimized() then w:minimize() end
+    end
+    for _, w in ipairs(wins) do bringBack(w) end
 
     local screen = wins[1]:screen() or hs.screen.mainScreen()
     if pickScreen then
@@ -128,6 +174,20 @@ function M.tile(cols, rows, pickScreen, popOutsOnly)
     end
 
     local spanById = {}
+    local baseCols, baseRows = cols, rows
+    -- Focus mode fits the grid to the count, and one window one short of full takes two squares.
+    local function fitToCount()
+      if not limit then return end
+      cols, rows = fitGrid(#wins, baseCols, baseRows)
+      if #wins == cols * rows - 1 and #wins > 1 then
+        local first = wins[1]
+        for _, w in ipairs(wins) do
+          if (w:title() or ""):lower() < (first:title() or ""):lower() then first = w end
+        end
+        spanById[first:id()] = 2
+      end
+    end
+    fitToCount()
     local ordered, spans = sortWins(spanById)
     local rects, cellW = plan(f, ordered, spans, cols, rows, pickScreen ~= nil)
     apply(ordered, rects)
@@ -158,8 +218,19 @@ function M.tile(cols, rows, pickScreen, popOutsOnly)
             table.insert(kept, w)
           end
         end
+        if widest and #spare > 0 then
+          local replacement = table.remove(spare, 1)
+          bringBack(replacement)
+          table.insert(kept, replacement)
+        end
         if changed then
           wins = kept
+          if widest then
+            for id, span in pairs(spanById) do
+              if span == 2 and limit then spanById[id] = nil end
+            end
+            fitToCount()
+          end
           ordered, spans = sortWins(spanById)
           rects = plan(f, ordered, spans, cols, rows, pickScreen ~= nil)
           apply(ordered, rects)
@@ -180,7 +251,9 @@ function M.start(options)
   end
   M.hotkeys = {
     hs.hotkey.bind(config.mods, config.gridKey, function() M.tile(2, 2) end),
-    hs.hotkey.bind(config.mods, config.popOutKey, function() M.tile(3, 3, nil, true) end),
+    hs.hotkey.bind(config.mods, config.popOutKey, function()
+      M.tile(3, 2, nil, true, config.focusLimit, config.hideOthers)
+    end),
     hs.hotkey.bind(config.mods, config.verticalKey, function() M.tile(2, 4, verticalScreen) end),
   }
   return M
